@@ -1,0 +1,329 @@
+import os
+from collections import UserDict
+import re
+from datetime import datetime, timedelta
+
+messages = {
+    -1: '- Done',
+    0: '- Unknown command',
+    1: '- More arguments needed',
+    2: '- Too many arguments',
+    3: '- Incorrect phone',
+    4: '- Phone not found',
+    5: '- Good bye!',
+    6: '- How can I help you?',
+    7: '- There is no any records in phonebook',
+    8: '- Incorrect phone number',
+    9: '- Invalid date of birth',
+    10: '- User already exists',
+    11: '- User not found'
+}
+
+
+def error_processor(func):
+    def inner(promt: str):
+        try:
+            return func(promt)
+        except ValueError as exception:
+            return exception.args[0]
+        except StopIteration as exception:
+            pass
+        except KeyError as exception:
+            return exception.args[0]
+
+    return inner
+
+
+class Field():
+    __value__: str
+    def __init__(self, value):
+        self.__value__ = value
+
+
+class Name(Field):
+    def __init__(self, value):
+        super().__init__(value)
+    
+    def __str__(self) -> str:
+        return str(self.__value__)
+
+
+class Phone(Field):
+    @property
+    def value(self):
+        return self.__value__
+
+    @value.setter
+    def value(self, value):
+        if value:
+            ph = re.findall(r"[+][\d]{3}[(][\d]{2}[)][\d]{3}[-][\[\d]{2}[-][\d]{2}]?", value)
+            if ph:
+                super().__init__(str(value))
+            else:
+                raise ValueError(messages.get(8))
+        else:
+            super().__init__(str(value))
+    
+
+    def __init__(self, value):
+        self.value = value
+
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+class BirthDay(Field):
+    @property
+    def value(self):
+        return self.__value__
+
+    @value.setter
+    def value(self, value):
+        if value:
+            db = re.findall(r"[\d]{4}[-][\d]{2}[-][\d]{2}", value)
+            if db:
+                db_parts = str(db[0]).split("-")
+                if int(db_parts[0])>=1930 and int(db_parts[1])<=12 and int(db_parts[2])<=31:
+                    super().__init__(str(value))
+                else:
+                    raise ValueError(messages.get(9))
+            else:
+                raise ValueError(messages.get(9))
+        else:
+            super().__init__(str(value))
+
+
+    def __init__(self, value):
+        self.value = value
+
+
+    def __str__(self) -> str:
+        return str(self.__value__)
+
+
+class Record():
+    name: Name
+    phones: list[Phone]
+    birthday: BirthDay
+
+
+    def __init__(self, u_name: str, u_phone: list[str], u_birthday: str = '') -> None:
+        self.name = Name(u_name)
+        self.phones = list()
+        if u_phone:
+            for uph in u_phone:
+                self.phones.append(Phone(str(uph)))
+
+        self.birthday = BirthDay(u_birthday)
+
+    def __str__(self) -> str:
+        res = str(self.name) + ", phones: "
+        for ph in self.phones:
+            res += str(ph) + ", "
+        res += "birthday: " + str(self.birthday)
+        return res
+    
+    def add_phone(self, u_phone: str):
+        if not self.phones:
+            self.phones = list[Phone]
+        ph = Phone(u_phone)
+        self.phones.append(ph)
+
+    def days_to_birthday(self):
+        if self.birthday:
+            today = datetime.now().date()
+            db = datetime(year = datetime.now().year, month = int(str(self.birthday).split("-")[1]), day = int(str(self.birthday).split("-")[2]))
+            db = db.date()
+            if db < today:
+                db += timedelta(days= 365)
+            return (db-today).days
+        else:
+            return 'ХЗ'
+
+
+class AddressBook(UserDict):
+    pos = 0
+    count_of_items_for_iterator = 3
+    
+    def __next__(self):
+        if self.pos < len(self.keys()):
+            res = ""
+            i = self.pos
+            k = list(self.data.keys())
+            while i < self.pos + self.count_of_items_for_iterator and i < len(k):
+                res += str(self.data.get(k[i])) + '\n'
+                i += 1
+            self.pos = i
+            return res
+        raise StopIteration    
+
+
+    def add_record(self, record: Record):
+        if self.get(str(record.name)):
+            raise KeyError(messages.get(10))
+        else:
+            self.update({str(record.name): record})
+
+    def show_all(self):
+        res = ''
+        if self.keys:
+            for rec in self.keys():
+                res += str(self.get(rec)) + '\n'
+            return res
+        else:
+            raise ValueError(messages.get(7))
+
+    def update_record(self, record: Record):
+        if self.get(str(record.name)):
+           self.update({str(record.name): record})
+        else:
+             raise KeyError(messages.get(11))
+
+    def find_user(self, name:str) -> Record:
+        res = self.get(name)
+        if res:
+            return res
+        else:
+            raise KeyError(messages.get(11))
+
+    def add_phone(self, user: str, phone: str):
+        usr = self.find_user(user)
+        if usr:
+            usr.add_phone(phone)
+        else:
+            raise KeyError(messages.get(11))
+
+
+class BookIterator:
+    book: AddressBook
+    def __init__(self, book: AddressBook) -> None:
+        self.book = book
+    def __iter__(self):
+        return self.book
+
+book = AddressBook()
+
+def hello(promt: str):
+    return messages.get(6)
+
+@error_processor
+def add(promt: str):
+    arguments = promt.split(" ")
+    l = len(arguments)
+    match l:
+        case 0:
+            raise ValueError(messages.get(1))
+        case 1:
+            raise ValueError(messages.get(1))
+        case 2:
+            rec = Record(arguments[0],[ arguments[1]])
+            book.add_record(rec)
+            return messages.get(-1)
+        case _:
+            raise ValueError(messages.get(2))
+
+@error_processor
+def phone(promt: str):
+    arguments = promt.split(" ")
+    l = len(arguments)
+    match l:
+        case 0:
+            raise ValueError(messages.get(1))
+        case 1:
+            try:
+                res = ""
+                for phone in book.find_user(arguments[0]).phones:
+                    res += str(phone) + "\n"
+                if res:
+                    return res
+                else:
+                    raise ValueError(messages.get(4))
+            except:
+                raise ValueError(messages.get(4))
+        case _:
+            raise ValueError(messages.get(2))
+
+@error_processor
+def show_all(promt: str):
+    res = ''
+    res = book.show_all()
+    return res
+
+def finish(promt: str):
+    return messages.get(5)
+
+@error_processor
+def days_to_bd(promt: str):
+    return book.find_user(promt).days_to_birthday()
+
+
+OPERATIONS = {
+    'hello': hello,
+    'add': add,
+    'change': add,
+    'phone': phone,
+    'show all': show_all,
+    'good bye': finish,
+    'close': finish,
+    'exit': finish,
+    'fuck off': finish,
+    'days to bd': days_to_bd
+}
+
+@error_processor
+def parse(promt: str):
+    command = ''
+    arguments = ''
+    for operation in OPERATIONS.keys():
+        if operation in promt.lower():
+            command = str(operation)
+            break
+    if command != '':
+        arguments = promt[len(command + ' '):]
+        return OPERATIONS.get(command)(arguments)
+    else:
+        raise ValueError(messages.get(0))
+
+
+def main():
+    os.system('CLS')
+    print("- Hello! Let's get started!")
+    while True:
+        command = input()
+        res = parse(command)
+        print(res)
+        if res == messages.get(5):
+            break
+        
+
+
+
+
+
+
+rec = Record("Waldemar", ["+380(99)927-94-80"], "1985-09-09")
+book.add_record(rec)
+rec = Record("Julia", ["+380(50)754-32-29"], "1986-08-18")
+book.add_record(rec)
+rec = Record("Hulia", ["+380(50)754-32-29"], "1986-08-18")
+book.add_record(rec)
+rec = Record("Marina", ["+380(50)754-32-29"], "1986-08-18")
+book.add_record(rec)
+rec = Record("Arny", ["+380(50)754-32-29"], "1986-08-18")
+book.add_record(rec)
+rec = Record("Vandamme", ["+380(50)754-32-29"], "1986-08-18")
+book.add_record(rec)
+rec = Record("Huinya", ["+380(50)754-32-22"], "1986-08-18")
+book.add_record(rec)
+book.add_phone("Waldemar", "+380(66)135-32-29")
+
+#rec.add_phone("+380(95)365-01-42")
+#print(str(rec))
+
+#print(rec.days_to_birthday())
+
+c = BookIterator(book)
+#for i in c:
+    #print(i + "\n")
+main()
