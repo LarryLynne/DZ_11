@@ -61,10 +61,6 @@ class Phone(Field):
                 raise ValueError(messages.get(8))
         else:
             self._value = (str(value))
-    
-
-    def __init__(self, value):
-        self.value = value
 
 
     def __str__(self) -> str:
@@ -88,28 +84,18 @@ class BirthDay(Field):
             self._value = (str(value))
 
 
-    def __init__(self, value):
-        self.value = value
-
-
     def __str__(self) -> str:
         return str(self._value)
 
 
 class Record:
-    name: Name
-    phones: list[Phone]
-    birthday: BirthDay
+    def __init__(self, user_name: str, user_phones: tuple = (), user_birthday: str = '') -> None:
+        self.name: Name = Name(user_name)
+        self.phones: list[Phone] = list()
+        for uph in user_phones:
+            self.add_phone(uph)
 
-
-    def __init__(self, user_name: str, user_phone: list[str] = [], user_birthday: str = '') -> None:
-        self.name = Name(user_name)
-        self.phones = list()
-        if user_phone:
-            for uph in user_phone:
-                self.add_phone(uph)
-
-        self.birthday = BirthDay(user_birthday)
+        self.birthday: BirthDay = BirthDay(user_birthday)
 
     def __str__(self) -> str:
         res = str(self.name) + ", phones: "
@@ -300,16 +286,10 @@ rec = Record("Arny", ["+380(50)754-32-29"], "1986-08-18")
 book.add_record(rec)
 rec = Record("Vandamme", ["+380(50)754-32-29"], "1986-08-18")
 book.add_record(rec)
-rec = Record("Huinya", ["+380(50)754-32-22"], "1986-08-18")
+rec = Record("Ibrahim", ["+380(50)754-32-22"], "1986-08-18")
 book.add_record(rec)
 book.add_phone("Waldemar", "+380(66)135-32-29")
 
-#rec.add_phone("+380(95)365-01-42")
-#print(str(rec))
-
-#print(rec.days_to_birthday())
-
 c = BookIterator(book)
-#for i in c:
-    #print(i + "\n")
+
 main()
