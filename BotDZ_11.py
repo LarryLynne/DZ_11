@@ -30,39 +30,37 @@ def error_processor(func):
             pass
         except KeyError as exception:
             return exception.args[0]
-
     return inner
 
 
-class Field():
-    __value__: str
+class Field:
     def __init__(self, value):
-        self.__value__ = value
+        self._value = None
+        self.value = value
+    @property
+    def value(self):
+        return self._value
+    @value.setter
+    def value(self, value):
+        self._value = value
 
 
 class Name(Field):
-    def __init__(self, value):
-        super().__init__(value)
-    
     def __str__(self) -> str:
-        return str(self.__value__)
+        return str(self._value)
 
 
 class Phone(Field):
-    @property
-    def value(self):
-        return self.__value__
-
-    @value.setter
+    @Field.value.setter
     def value(self, value):
         if value:
             ph = re.findall(r"[+][\d]{3}[(][\d]{2}[)][\d]{3}[-][\[\d]{2}[-][\d]{2}]?", value)
             if ph:
-                super().__init__(str(value))
+                self._value = (str(value))
             else:
                 raise ValueError(messages.get(8))
         else:
-            super().__init__(str(value))
+            self._value = (str(value))
     
 
     def __init__(self, value):
@@ -70,28 +68,24 @@ class Phone(Field):
 
 
     def __str__(self) -> str:
-        return str(self.value)
+        return str(self._value)
 
 
 class BirthDay(Field):
-    @property
-    def value(self):
-        return self.__value__
-
-    @value.setter
+    @Field.value.setter
     def value(self, value):
         if value:
             db = re.findall(r"[\d]{4}[-][\d]{2}[-][\d]{2}", value)
             if db:
                 db_parts = str(db[0]).split("-")
                 if int(db_parts[0])>=1930 and int(db_parts[1])<=12 and int(db_parts[2])<=31:
-                    super().__init__(str(value))
+                    self._value = (str(value))
                 else:
                     raise ValueError(messages.get(9))
             else:
                 raise ValueError(messages.get(9))
         else:
-            super().__init__(str(value))
+            self._value = (str(value))
 
 
     def __init__(self, value):
@@ -99,23 +93,23 @@ class BirthDay(Field):
 
 
     def __str__(self) -> str:
-        return str(self.__value__)
+        return str(self._value)
 
 
-class Record():
+class Record:
     name: Name
     phones: list[Phone]
     birthday: BirthDay
 
 
-    def __init__(self, u_name: str, u_phone: list[str], u_birthday: str = '') -> None:
-        self.name = Name(u_name)
+    def __init__(self, user_name: str, user_phone: list[str] = [], user_birthday: str = '') -> None:
+        self.name = Name(user_name)
         self.phones = list()
-        if u_phone:
-            for uph in u_phone:
-                self.phones.append(Phone(str(uph)))
+        if user_phone:
+            for uph in user_phone:
+                self.add_phone(uph)
 
-        self.birthday = BirthDay(u_birthday)
+        self.birthday = BirthDay(user_birthday)
 
     def __str__(self) -> str:
         res = str(self.name) + ", phones: "
@@ -124,11 +118,8 @@ class Record():
         res += "birthday: " + str(self.birthday)
         return res
     
-    def add_phone(self, u_phone: str):
-        if not self.phones:
-            self.phones = list[Phone]
-        ph = Phone(u_phone)
-        self.phones.append(ph)
+    def add_phone(self, user_phone: str):
+        self.phones.append(Phone(user_phone))
 
     def days_to_birthday(self):
         if self.birthday:
@@ -296,11 +287,6 @@ def main():
         if res == messages.get(5):
             break
         
-
-
-
-
-
 
 rec = Record("Waldemar", ["+380(99)927-94-80"], "1985-09-09")
 book.add_record(rec)
